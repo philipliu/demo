@@ -7,7 +7,7 @@ use soroban_sdk::Env;
 fn test() {
     let env = Env::default();
     let contract_id = env.register_contract(None, WebAuthContract);
-    let client = CustomAccountContractClient::new(&env, &contract_id);
+    let client = WebAuthContractClient::new(&env, &contract_id);
 
     todo!()
 }
