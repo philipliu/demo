@@ -8,7 +8,7 @@ use soroban_sdk::{
 use soroban_sdk::{contracterror, Map, String};
 
 #[contract]
-pub struct CustomAccountContract;
+pub struct WebAuthContract;
 
 #[contracttype]
 #[derive(Clone)]
@@ -20,31 +20,14 @@ pub struct AccSignature {
 #[contracterror]
 #[derive(Clone, Copy)]
 pub enum AccError {
-    UnknownSigner = 1,
-    BadSignatureOrder = 2,
-    InvalidContext = 3,
-    WebAuthBadAddress = 4,
-}
-
-#[contracttype]
-#[derive(Clone)]
-enum DataKey {
-    SignerCnt,
-    Signer(BytesN<32>),
+    BadSignatureOrder = 1,
+    InvalidContext = 2,
+    WebAuthBadAddress = 3,
 }
 
 #[contractimpl]
-impl CustomAccountContract {
-    pub fn init(env: Env, signers: Vec<BytesN<32>>) {
-        // Add signers
-        for signer in signers.iter() {
-            env.storage().instance().set(&DataKey::Signer(signer), &());
-        }
-        env.storage()
-            .instance()
-            .set(&DataKey::SignerCnt, &signers.len());
-    }
-
+impl WebAuthContract {
+    // TODO: do we need to support multiple signer types?
     pub fn web_auth_verify(env: Env, args: Map<String, String>) -> Result<(), AccError> {
         if let Some(account_id) = args.get(String::from_str(&env, "account")) {
             let addr = Address::from_string(&account_id);
@@ -52,12 +35,21 @@ impl CustomAccountContract {
         } else {
             return Err(AccError::WebAuthBadAddress);
         };
+
+        if let Some(client_domain_signing_key) =
+            args.get(String::from_str(&env, "client_domain_signing_key"))
+        {
+            // TODO: only allow ed25519 signers
+            let addr = Address::from_string(&client_domain_signing_key);
+            addr.require_auth();
+        }
+
         Ok(())
     }
 }
 
 #[contractimpl]
-impl CustomAccountInterface for CustomAccountContract {
+impl CustomAccountInterface for WebAuthContract {
     type Signature = Vec<AccSignature>;
     type Error = AccError;
 
@@ -65,7 +57,7 @@ impl CustomAccountInterface for CustomAccountContract {
         env: Env,
         signature_payload: Hash<32>,
         signatures: Vec<AccSignature>,
-        auth_context: Vec<Context>,
+        _auth_context: Vec<Context>,
     ) -> Result<(), AccError> {
         authenticate(&env, &signature_payload, &signatures)?;
 
@@ -86,13 +78,7 @@ fn authenticate(
                 return Err(AccError::BadSignatureOrder);
             }
         }
-        if !env
-            .storage()
-            .instance()
-            .has(&DataKey::Signer(signature.public_key.clone()))
-        {
-            return Err(AccError::UnknownSigner);
-        }
+
         env.crypto().ed25519_verify(
             &signature.public_key,
             &signature_payload.clone().into(),
