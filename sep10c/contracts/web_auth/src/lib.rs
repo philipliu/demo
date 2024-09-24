@@ -13,13 +13,17 @@ pub enum WebAuthError {
 
 #[contractimpl]
 impl WebAuthContract {
-    pub fn web_auth_verify(env: Env, args: Map<String, String>) -> Result<(), WebAuthError> {
-        if let Some(account_id) = args.get(String::from_str(&env, "address")) {
-            let addr = Address::from_string(&account_id);
-            addr.require_auth();
-        } else {
-            return Err(WebAuthError::WebAuthBadAddress);
-        };
+    pub fn web_auth_verify(
+        env: Env,
+        address: String,               // TODO: use Address
+        _memo: String,                 // IGNORED
+        _home_domain: String,          // IGNORED
+        _web_auth_domain: String,      // IGNORED
+        _client_domain: String,        // IGNORED
+        client_domain_address: String, // TODO: use Address
+    ) -> Result<(), WebAuthError> {
+        let addr = Address::from_string(&address);
+        addr.require_auth();
         Ok(())
     }
 }
